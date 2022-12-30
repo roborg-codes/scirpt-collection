@@ -1,0 +1,31 @@
+---
+- name: Install docker
+  hosts: all
+  become: true
+
+  tasks:
+  - name: Install docker
+    block:
+    - name: Add gpg keys
+      shell: |
+        mkdir -p /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/debian/gpg | \
+            gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+    - name: Add repository
+      apt_repository:
+        repo: |
+          deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian {{ ansible_facts['distribution_release'] }} stable
+        filename: docker
+        update_cache: true
+        state: present
+
+    - name: Install Docker
+      apt:
+        pkg:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        state: present
+        update_cache: true
+

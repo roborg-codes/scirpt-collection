@@ -1,0 +1,32 @@
+---
+- name: Install jenkins
+  hosts: all
+  become: true
+
+  tasks:
+  - name: Install Jenkins
+    block:
+    - name: Add gpg keys
+      get_url:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io.key
+        dest: /usr/share/keyrings/jenkins-keyring.asc
+        mode: 0644
+        force: true
+
+    - name: Adding repository
+      apt_repository:
+        repo: |
+          deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/
+        filename: jenkins
+        update_cache: true
+        state: present
+
+    - name: Install Java 11
+      apt:
+        name: openjdk-11-jre
+        state: present
+
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
