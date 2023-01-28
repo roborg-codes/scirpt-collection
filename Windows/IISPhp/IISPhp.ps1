@@ -1,13 +1,13 @@
-Configuraion IISPhp
+Configuration IISPhp
 {
     param
     (
         [string]$NodeName="localhost",
-        [Parameter(Mandatroy=$true)][string]$PhpProjectUrl
+        [string]$PhpProjectUrl
     )
 
     Import-DscResource -ModuleName PsDesiredStateConfiguration
-    Import-DscResource -ModuleName xWebAdministration
+    # Import-DscResource -ModuleName xWebAdministration
     # Import-DscResource -ModuleName xPhp
 
     Node $NodeName
@@ -25,9 +25,10 @@ Configuraion IISPhp
 
         File WebSite
         {
-            Ensure = "Present"
-            Path   = "C:\inetpub\wwwroot"
-            Source = $PhpProjectUrl
+            Ensure            = "Present"
+            DestinationPath   = "C:\inetpub\wwwroot"
+            SourcePath        = $PhpProjectUrl
+            DependsOn         = "[WindowsFeature]WebServerRole"
         }
     }
 }
