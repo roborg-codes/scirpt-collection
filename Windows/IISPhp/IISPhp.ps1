@@ -3,7 +3,7 @@
 configuration webConfiguration
 {
     param (
-        [Parameter(Mandatory = $False)]
+        [Parameter(Mandatory = $True)]
         [String]$websitePackageUri
     )
 
@@ -18,86 +18,127 @@ configuration webConfiguration
             Ensure = "Present"
         }
 
-        WindowsFeature WebManagementService {
-            Name   = "Web-Mgmt-Service"
-            Ensure = "Present"
-        }
+        # WindowsFeature WebManagementService {
+        #     Name   = "Web-Mgmt-Service"
+        #     Ensure = "Present"
+        # }
 
-        WindowsFeature ASPNet45 {
-            Name   = "Web-Asp-Net45"
-            Ensure = "Present"
-        }
+        # WindowsFeature ASPNet45 {
+        #     Name   = "Web-Asp-Net45"
+        #     Ensure = "Present"
+        # }
 
-        WindowsFeature HTTPRedirection {
-            Name   = "Web-Http-Redirect"
-            Ensure = "Present"
-        }
+        # WindowsFeature HTTPRedirection {
+        #     Name   = "Web-Http-Redirect"
+        #     Ensure = "Present"
+        # }
 
-        WindowsFeature CustomLogging {
-            Name   = "Web-Custom-Logging"
-            Ensure = "Present"
-        }
+        # WindowsFeature CustomLogging {
+        #     Name   = "Web-Custom-Logging"
+        #     Ensure = "Present"
+        # }
 
-        WindowsFeature LogginTools {
-            Name   = "Web-Log-Libraries"
-            Ensure = "Present"
-        }
+        # WindowsFeature LogginTools {
+        #     Name   = "Web-Log-Libraries"
+        #     Ensure = "Present"
+        # }
 
-        WindowsFeature RequestMonitor {
-            Name   = "Web-Request-Monitor"
-            Ensure = "Present"
-        }
+        # WindowsFeature RequestMonitor {
+        #     Name   = "Web-Request-Monitor"
+        #     Ensure = "Present"
+        # }
 
-        WindowsFeature Tracing {
-            Name   = "Web-Http-Tracing"
-            Ensure = "Present"
-        }
+        # WindowsFeature Tracing {
+        #     Name   = "Web-Http-Tracing"
+        #     Ensure = "Present"
+        # }
 
-        WindowsFeature BasicAuthentication {
-            Name   = "Web-Basic-Auth"
-            Ensure = "Present"
-        }
+        # WindowsFeature BasicAuthentication {
+        #     Name   = "Web-Basic-Auth"
+        #     Ensure = "Present"
+        # }
 
-        WindowsFeature WindowsAuthentication {
-            Name   = "Web-Windows-Auth"
-            Ensure = "Present"
-        }
+        # WindowsFeature WindowsAuthentication {
+        #     Name   = "Web-Windows-Auth"
+        #     Ensure = "Present"
+        # }
 
-        WindowsFeature ApplicationInitialization {
-            Name   = "Web-AppInit"
-            Ensure = "Present"
-        }
+        # WindowsFeature ApplicationInitialization {
+        #     Name   = "Web-AppInit"
+        #     Ensure = "Present"
+        # }
 
-        if (![String]::IsNullOrEmpty($websitePackageUri)) {
+        Script InstallVcRedist {
+            GetScript = {
+                $HasVcRedistModule = (Get-Module -ListAvailable VcRedist)
+                $VcRedistInstalled = (Get-AppxPackage –Name *vcredist*)
+                $Result = ($HasVcRedistModule -and $VcRedistInstalled)
 
-            # Download and unpack the website into the default website
-            Script DeployWebPackage {
-                GetScript  = {@{Result = "DeployWebPackage"}}
-                TestScript = {
-                    return Test-Path -Path "C:\WebApp\Site.zip";
-                }
-                SetScript  = {
-
-                    if (!(Test-Path -Path "C:\WebApp")) {
-                        New-Item -Path "C:\WebApp" -ItemType Directory -Force | Out-Null;
-                    }
-
-                    $dest = "C:\WebApp\Site.zip"
-
-                    if (Test-Path -Path "C:\inetpub\wwwroot") {
-                        Remove-Item -Path "C:\inetpub\wwwroot" -Force -Recurse -ErrorAction SilentlyContinue | Out-Null;
-                    }
-
-                    if (!(Test-Path -Path "C:\inetpub\wwwroot")) {
-                        New-Item -Path "C:\inetpub\wwwroot" -ItemType Directory -Force | Out-Null;
-                    }
-
-                    Invoke-WebRequest -Uri $using:websitePackageUri -OutFile $dest -UseBasicParsing;
-
-                    Expand-Archive -Path $dest -DestinationPath "C:\inetpub\wwwroot" -Force;
-                }
-                DependsOn  = "[WindowsFeature]WebServerRole"
+                return @{Result = "$Result"}
             }
+
+            SetScript = {
+                Install-Module -Name VcRedist -Force
+                Import-Module -Name VcRedist
+
+                $VcRedistInstallablesPath = "C:\Temp\Redist"
+                if (!Test-Path -Path $VcRedistInstallablesPath) {
+                    New-Item `
+                        -Path $VcRedistInstallablesPath `
+                        -ItemType Directory
+                }
+
+                $VcList = Get-VcList -Release 2019 -Architecture x86
+                Save-VcRedist -VcList $VcList -Path $VcRedistInstallablesPath
+                Install-VcRedist `
+                    -VcList $VcList `
+                    -Path $VcRedistInstallablesPath `
+                    -Silent -Force
+
+                return "OK"
+            }
+
+            TestScript = {
+                $hasVcRedistModule = (Get-Module -ListAvailable VcRedist)
+                $vcRedistInstalled = (Get-AppxPackage –Name *vcredist*)
+
+                return ($hasVcRedistModule -and $vcRedistInstalled)
+            }
+
+        }
+
+        Script InstallPhp {
+            GetScript = {
+                $Result = (Test-Path -Path "C:\PHP" -and php -v)
+                @{
+                    Result = "$Result"
+                }
+            }
+
+            TestScript = {
+                return Test-Path -Path "C:\PHP\"
+            }
+
+            SetScript = {
+                Set-ExecutionPolicy `
+                    -ExecutionPolicy RemoteSigned `
+                    -Scope CurrentUser `
+                    -Force
+
+                Install-Module `
+                    -Name PhpManager `
+                    -Repository PSGallery `
+                    -Force
+
+                Install-Php `
+                    -Version 8.1 `
+                    -Architecture x64 `
+                    -ThreadSafe 0 `
+                    -Path C:\PHP `
+                    -TimeZone UTC `
+                    -AddToPath User
+            }
+
         }
     }
 }
