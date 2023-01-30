@@ -1,10 +1,13 @@
-# https://gist.github.com/BernieWhite/23522e76765d8fa88db7abb5f03086ce#file-azure-web-vm-configuration-ps1
+# Usage:
+# webConfiguration -WebsitePackageUri https://example.com/app.php.zip
+# Start-DSConfiguraion -Path .\WebConfiguration\
 
-configuration webConfiguration
+configuration WebConfiguration
 {
-    param (
+    param
+    (
         [Parameter(Mandatory = $True)]
-        [String]$websitePackageUri
+        [String]$WebsitePackageUri
     )
 
     Import-DscResource -ModuleName PSDesiredStateConfiguration
@@ -13,7 +16,8 @@ configuration webConfiguration
     Node 'localhost'
     {
         # Install IIS features
-        WindowsFeature WebServerRole {
+        WindowsFeature WebServerRole
+        {
             Name   = "Web-Server"
             Ensure = "Present"
         }
@@ -68,55 +72,63 @@ configuration webConfiguration
         #     Ensure = "Present"
         # }
 
-        Script InstallVcRedist {
+        Script Install-VcRedist
+        {
             GetScript = {
-                $HasVcRedistModule = (Get-Module -ListAvailable VcRedist)
-                $VcRedistInstalled = (Get-AppxPackage –Name *vcredist*)
-                $Result = ($HasVcRedistModule -and $VcRedistInstalled)
+                return @{
+                    Result = Get-AppPackage | Where-Object { $_.Name -Like "*Visual C++*2019*" } | Select Name
+                }
+            }
 
-                return @{Result = "$Result"}
+            TestScript = {
+                $HasVcRedistModule = Get-Module -ListAvailable VcRedist
+                $VcRedistInstalled = Get-AppPackage | Where-Object { $_.Name -Like "*Visual C++*2019*" }
+
+                return ($HasVcRedistModule -and $VcRedistInstalled)
             }
 
             SetScript = {
+                Install-PackageProvider `
+                    -Name NuGet `
+                    -MinimumVersion 2.8.5.201 `
+                    -Force
                 Install-Module -Name VcRedist -Force
                 Import-Module -Name VcRedist
+                Write-Verbose -Message "VcRedist module loaded"
 
                 $VcRedistInstallablesPath = "C:\Temp\Redist"
-                if (!Test-Path -Path $VcRedistInstallablesPath) {
+                if (-not (Test-Path -Path $VcRedistInstallablesPath)) {
+                    Write-Verbose -Message "Creating directory $VcRedistInstallablesPath"
                     New-Item `
                         -Path $VcRedistInstallablesPath `
                         -ItemType Directory
                 }
 
                 $VcList = Get-VcList -Release 2019 -Architecture x86
+                Write-Verbose -Message "Saving VcRedist 2019 x86"
                 Save-VcRedist -VcList $VcList -Path $VcRedistInstallablesPath
+
+                Write-Verbose -Message "Installing VcRedist 2019 x86"
                 Install-VcRedist `
                     -VcList $VcList `
                     -Path $VcRedistInstallablesPath `
-                    -Silent -Force
+                    -Silent `
+                    -Force
 
-                return "OK"
+                Write-Verbose -Message "Done!"
             }
-
-            TestScript = {
-                $hasVcRedistModule = (Get-Module -ListAvailable VcRedist)
-                $vcRedistInstalled = (Get-AppxPackage –Name *vcredist*)
-
-                return ($hasVcRedistModule -and $vcRedistInstalled)
-            }
-
         }
 
-        Script InstallPhp {
+        Script InstallPhp
+        {
             GetScript = {
-                $Result = (Test-Path -Path "C:\PHP" -and php -v)
-                @{
-                    Result = "$Result"
+                return @{
+                    Result = [String](php -v)
                 }
             }
 
             TestScript = {
-                return Test-Path -Path "C:\PHP\"
+                return (Test-Path -Path "C:\PHP" -and php -v)
             }
 
             SetScript = {
@@ -132,13 +144,14 @@ configuration webConfiguration
 
                 Install-Php `
                     -Version 8.1 `
-                    -Architecture x64 `
+                    -Architecture x86 `
                     -ThreadSafe 0 `
                     -Path C:\PHP `
                     -TimeZone UTC `
-                    -AddToPath User
+                    -AddToPath System
             }
 
+            DependsOn = "[Script]Install-VcRedist"
         }
     }
 }
