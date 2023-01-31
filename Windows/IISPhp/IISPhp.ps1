@@ -1,10 +1,8 @@
 # Usage:
 # webConfiguration -WebsitePackageUri https://example.com/app.php.zip
 # Start-DSConfiguraion -Path .\WebConfiguration\
-
 # TODO:
-# 1. fastcgi???
-# 2. Fix path to unzip (archive creates single directory in target)
+# 1. Add Handler mapping -> Module mapping
 
 configuration WebConfiguration
 {
@@ -22,6 +20,13 @@ configuration WebConfiguration
         WindowsFeature WebServerRole
         {
             Name   = "Web-Server"
+            Ensure = "Present"
+        }
+
+        # Instll FastCGI
+        WindowsFeature WebCGI
+        {
+            Name   = "Web-CGI"
             Ensure = "Present"
         }
 
@@ -69,7 +74,7 @@ configuration WebConfiguration
             }
 
             TestScript = {
-                return Test-Path -PathType leaf -Path "C:\Temp\WebApp\Archive.zip"
+                return $False
             }
 
             SetScript = {
@@ -117,22 +122,17 @@ configuration WebConfiguration
                     -Force
                 Install-Module -Name VcRedist -Force
                 Import-Module -Name VcRedist
-                Write-Verbose -Message "VcRedist module loaded"
 
                 $VcRedistInstallablesPath = "C:\Temp\Redist"
                 $VcList = Get-VcList -Release 2019 -Architecture x86
 
-                Write-Verbose -Message "Saving VcRedist 2019 x86"
                 Save-VcRedist -VcList $VcList -Path $VcRedistInstallablesPath
 
-                Write-Verbose -Message "Installing VcRedist 2019 x86"
                 Install-VcRedist `
                     -VcList $VcList `
                     -Path $VcRedistInstallablesPath `
                     -Silent `
                     -Force
-
-                Write-Verbose -Message "Done!"
             }
 
             DependsOn = "[File]VcRedistDir"
@@ -168,7 +168,10 @@ configuration WebConfiguration
                     -ThreadSafe 0 `
                     -Path "C:\PHP" `
                     -TimeZone UTC `
-                    -AddToPath User
+                    -AddToPath User `
+                    -Force
+
+                Enable-PhpExtension mysqli "C:\PHP"
             }
 
             DependsOn = "[Script]InstallVcRedist"
@@ -184,66 +187,67 @@ configuration WebConfiguration
             }
 
             TestScript = {
-                Import-Module -Name IISAdministration
-                return [Bool](Get-IISSite -Name "php-mysql-crud")
+                return $False
             }
 
             SetScript = {
                 Import-Module -Name IISAdministration
+                Import-Module -Name WebAdministration
 
-                Start-IISCommitDelay
-                Remove-IISSiteBinding -Name "Default Web Site" -BindingInformation "*:80:"
-                Remove-IISSite -Name "Default Web Site" -Verbose -Confirm:$false
-                Stop-IISCommitDelay
+                Remove-IISSiteBinding `
+                    -Name "Default Web Site" `
+                    -BindingInformation "*:80:" `
+                    -ErrorAction SilentlyContinue
+
+                Remove-IISSite `
+                    -Name "Default Web Site" `
+                    -Verbose -Confirm:$false `
+                    -ErrorAction SilentlyContinue
 
                 New-IISSite `
                     -Name "php-mysql-crud" `
                     -PhysicalPath "C:\inetpub\wwwroot\php-mysql-crud-master" `
                     -BindingInformation "*:80:" `
-                    -Protocol HTTP
+                    -Protocol HTTP `
+                    -ErrorAction SilentlyContinue
+
+                Add-WebConfiguration `
+                    //defaultDocument/files `
+                    "IIS:\Sites\php-mysql-crud" `
+                    -AtIndex 0 `
+                    -Value @{value="index.php"} `
+                    -ErrorAction SilentlyContinue
+
+                if (Get-WebHandler -PSPath "IIS:\Sites\php-mysql-crud" -Name PHP_FastCgi) {
+                    Set-WebHandler `
+                        -PSPath "IIS:\Sites\php-mysql-crud" `
+                        -Name "PHP_FastCgi" `
+                        -Path "*.php" `
+                        -Verb "*" `
+                        -Modules "FastCgiModule" `
+                        -ScriptProcessor "C:\PHP\php-cgi.exe" `
+                        -ErrorAction SilentlyContinue
+                } else {
+                    New-WebHandler `
+                        -PSPath "IIS:\Sites\php-mysql-crud" `
+                        -Name "PHP_FastCgi" `
+                        -Path "*.php" `
+                        -Verb "*" `
+                        -Modules "FastCgiModule" `
+                        -ScriptProcessor "C:\PHP\php-cgi.exe" `
+                        -ErrorAction SilentlyContinue
+                }
+
             }
 
-            DependsOn = @("[WindowsFeature]WebManagementScripts", "[Script]InstallPhp", "[Archive]UnzipWebSite")
+            DependsOn = @(
+                "[WindowsFeature]WebServerRole",
+                "[WindowsFeature]WebCGI",
+                "[WindowsFeature]WebManagementScripts",
+                "[Script]InstallPhp",
+                "[Archive]UnzipWebSite"
+            )
         }
 
-        # WindowsFeature HTTPRedirection {
-        #     Name   = "Web-Http-Redirect"
-        #     Ensure = "Present"
-        # }
-
-        # WindowsFeature CustomLogging {
-        #     Name   = "Web-Custom-Logging"
-        #     Ensure = "Present"
-        # }
-
-        # WindowsFeature LogginTools {
-        #     Name   = "Web-Log-Libraries"
-        #     Ensure = "Present"
-        # }
-
-        # WindowsFeature RequestMonitor {
-        #     Name   = "Web-Request-Monitor"
-        #     Ensure = "Present"
-        # }
-
-        # WindowsFeature Tracing {
-        #     Name   = "Web-Http-Tracing"
-        #     Ensure = "Present"
-        # }
-
-        # WindowsFeature BasicAuthentication {
-        #     Name   = "Web-Basic-Auth"
-        #     Ensure = "Present"
-        # }
-
-        # WindowsFeature WindowsAuthentication {
-        #     Name   = "Web-Windows-Auth"
-        #     Ensure = "Present"
-        # }
-
-        # WindowsFeature ApplicationInitialization {
-        #     Name   = "Web-AppInit"
-        #     Ensure = "Present"
-        # }
     }
 }
