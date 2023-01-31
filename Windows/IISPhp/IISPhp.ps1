@@ -218,15 +218,17 @@ configuration WebConfiguration
                     -Value @{value="index.php"} `
                     -ErrorAction SilentlyContinue
 
-                if (Get-WebHandler -PSPath "IIS:\Sites\php-mysql-crud" -Name PHP_FastCgi) {
+                $HasCgiHandler = Get-WebHandler `
+                    -PSPath "IIS:\Sites\php-mysql-crud" `
+                    -Name PHP_FastCgi
+                if ($HasCgiHandler) {
                     Set-WebHandler `
                         -PSPath "IIS:\Sites\php-mysql-crud" `
                         -Name "PHP_FastCgi" `
                         -Path "*.php" `
                         -Verb "*" `
                         -Modules "FastCgiModule" `
-                        -ScriptProcessor "C:\PHP\php-cgi.exe" `
-                        -ErrorAction SilentlyContinue
+                        -ScriptProcessor "C:\PHP\php-cgi.exe"
                 } else {
                     New-WebHandler `
                         -PSPath "IIS:\Sites\php-mysql-crud" `
@@ -234,9 +236,12 @@ configuration WebConfiguration
                         -Path "*.php" `
                         -Verb "*" `
                         -Modules "FastCgiModule" `
-                        -ScriptProcessor "C:\PHP\php-cgi.exe" `
-                        -ErrorAction SilentlyContinue
+                        -ScriptProcessor "C:\PHP\php-cgi.exe"
                 }
+
+                Add-WebConfiguration "System.WebServer/FastCgi" -Value @{
+                    FullPath = "C:\PHP\php-cgi.exe"
+                } -Force -ErrorAction SilentlyContinue
 
             }
 
