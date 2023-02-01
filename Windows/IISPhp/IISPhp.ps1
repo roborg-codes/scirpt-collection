@@ -1,15 +1,16 @@
 # Usage:
-# webConfiguration -WebsitePackageUri https://example.com/app.php.zip
+# webConfiguration -WebsitePackageUri https://example.com/app.php.zip -DBServerName myownmysqlserver
 # Start-DSConfiguraion -Path .\WebConfiguration\
-# TODO:
-# 1. Add Handler mapping -> Module mapping
 
 configuration WebConfiguration
 {
     param
     (
         [Parameter(Mandatory = $True)]
-        [String]$WebsitePackageUri
+        [String]$WebsitePackageUri,
+
+        [Parameter](Mandatory = $True)
+        [String]$DBServerName
     )
 
     Import-DscResource -ModuleName PSDesiredStateConfiguration
@@ -187,7 +188,11 @@ configuration WebConfiguration
             }
 
             TestScript = {
-                return $False
+                $StatusCode = Invoke-WebRequest `
+                    -Uri "http://127.0.0.1:80/index.php" `
+                    -UseBasicParsing |
+                        Select-Object -Expand StatusCode
+                return ($StatusCode -eq 200)
             }
 
             SetScript = {
@@ -251,6 +256,46 @@ configuration WebConfiguration
                 "[WindowsFeature]WebManagementScripts",
                 "[Script]InstallPhp",
                 "[Archive]UnzipWebSite"
+            )
+        }
+
+        # Download ssl certificate and set connection details
+        Script SetupMySQL
+        {
+            GetScript = {
+                return @{
+                    Result = "N/A"
+                }
+            }
+            TestScript = {
+                return $False
+            }
+            SetScript = {
+                $MySQLCertUrl = "https://dl.cacerts.digicert.com/DigiCertGlobalRootCA.crt.pem"
+
+                New-Item "C:\ssl" -ItemType Directory -ErrorAction SilentlyContinue
+                Invoke-WebRequest `
+                    -URI $MySQLCertUrl `
+                    -OutFile "C:\ssl\DigiCertGlobalRootCA.crt.pem"
+
+                $ConnectionModulePath = "C:\inetpub\wwwroot\php-mysql-crud-master\db.php"
+                Write-Output @"
+                <?php
+                    session_start();
+
+                    `$conn = mysqli_init();
+                    mysqli_ssl_set(`$conn, NULL, NULL, 'C:\ssl\DigiCertGlobalRootCA.crt.pem', NULL, NULL);
+                    mysqli_real_connect(`$conn, '$DBServerName.mysql.database.azure.com', 'main', 'Changemeplease!', 'php_mysql_crud', 3306, MYSQLI_CLIENT_SSL);
+
+                    if (mysqli_connect_errno(`$conn)) {
+                        die('Failed to connect to MySQL: '.mysqli_connect_error());
+                    }
+                ?>
+                "@ | Set-Content -Path $ConnectionModulePath
+
+            }
+            DependsOn = @(
+                "[Script]ConfigureWebsite"
             )
         }
 
