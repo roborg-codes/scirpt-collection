@@ -178,6 +178,7 @@ configuration WebConfiguration
                     -Force
 
                 Enable-PhpExtension mysqli "C:\PHP"
+                Enable-PhpExtension openssl "C:\PHP"
             }
 
             DependsOn = "[Script]InstallVcRedist"
@@ -284,7 +285,7 @@ configuration WebConfiguration
                 New-Item "C:\ssl" -ItemType Directory -ErrorAction SilentlyContinue
                 Invoke-WebRequest `
                     -URI $MySQLCertUrl `
-                    -OutFile "C:\ssl\DigiCertGlobalRootCA.crt.pem"
+                    -OutFile "C:\inetpub\wwwroot\php-mysql-crud-master\DigiCertGlobalRootCA.crt.pem"
 
                 $ConnectionModulePath = "C:\inetpub\wwwroot\php-mysql-crud-master\db.php"
                 Write-Output @"
@@ -292,10 +293,10 @@ configuration WebConfiguration
     session_start();
 
     `$conn = mysqli_init();
-    mysqli_ssl_set(`$conn, NULL, NULL, 'C:\ssl\DigiCertGlobalRootCA.crt.pem', NULL, NULL);
-    mysqli_real_connect(`$conn, '$DBServerName.mysql.database.azure.com', 'main', 'Changemeplease!', 'php_mysql_crud', 3306, MYSQLI_CLIENT_SSL);
+    mysqli_ssl_set(`$conn, NULL, NULL, '.\DigiCertGlobalRootCA.crt.pem', NULL, NULL);
+    mysqli_real_connect(`$conn, '$using:DBServerName.mysql.database.azure.com', 'main', 'Changemeplease!', 'php_mysql_crud', 3306, MYSQLI_CLIENT_SSL);
 
-    if (mysqli_connect_errno(`$conn)) {
+    if (mysqli_connect_errno()) {
         die('Failed to connect to MySQL: '.mysqli_connect_error());
     }
 ?>
