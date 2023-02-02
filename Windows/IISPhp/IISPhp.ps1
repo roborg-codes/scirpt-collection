@@ -281,8 +281,6 @@ configuration WebConfiguration
             }
             SetScript = {
                 $MySQLCertUrl = "https://dl.cacerts.digicert.com/DigiCertGlobalRootCA.crt.pem"
-
-                New-Item "C:\ssl" -ItemType Directory -ErrorAction SilentlyContinue
                 Invoke-WebRequest `
                     -URI $MySQLCertUrl `
                     -OutFile "C:\inetpub\wwwroot\php-mysql-crud-master\DigiCertGlobalRootCA.crt.pem"
