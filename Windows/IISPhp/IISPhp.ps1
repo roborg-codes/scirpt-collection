@@ -15,7 +15,18 @@ configuration WebConfiguration
 
         [Parameter(Mandatory)]
         [String]
-        $DBServerName
+        $DBServerName,
+
+
+        [Parameter(Mandatory)]
+        [PSCredential]
+        $StorageAccount,
+        # | username = name of storage account
+        # | password = account key
+
+        [Parameter(Mandatory)]
+        [String]
+        $FileShareName
     )
 
     Import-DscResource -ModuleName PSDesiredStateConfiguration
@@ -304,6 +315,42 @@ configuration WebConfiguration
             DependsOn = @(
                 "[Script]ConfigureWebsite"
             )
+        }
+
+        Script MountFileShare
+        {
+            GetScript = {
+                return @{
+                    Result = [String](Get-PSDrive "X" -PSProvider "Filesystem")
+                }
+            }
+            TestScript = {
+                return [Bool](Get-PSDrive "X" -PSProvider "FileSystem")
+            }
+            SetScript = {
+                $StorageAccountName = $using:StorageAccount.UserName
+                $StorageAccountKey = $using:StorageAccount.Password | ConvertFrom-SecureString
+                $FileShareUNCPath = "\\$StorageAccountName.file.core.windows.net\$FileShareName"
+
+                $ConnectTestResult = Test-NetConnection `
+                    -ComputerName $StorageAccountName.file.core.windows.net `
+                    -Port 445
+
+                if (-not $ConnectTestResult.TcpTestSucceeded) {
+                    Write-Error -Message "Unable to reach the Azure storage account via port 445."
+                    return
+                }
+
+                # Save the password so the drive will persist on reboot
+                cmd.exe /C "cmdkey /add:`"$FileShareUNCPath`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
+
+                # Mount the drive
+                New-PSDrive `
+                    -Persist `
+                    -Name "X" `
+                    -PSProvider "FileSystem" `
+                    -Root $FileShareUNCPath
+            }
         }
 
     }
