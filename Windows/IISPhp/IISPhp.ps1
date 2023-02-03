@@ -340,16 +340,15 @@ configuration WebConfiguration
                     Write-Error -Message "Unable to reach the Azure storage account via port 445."
                     return
                 }
+                Write-Output "Port 445 connection: OK"
 
                 # Save the password so the drive will persist on reboot
-                cmd.exe /C "cmdkey /add:`"$FileShareUNCPath`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
+                cmd.exe /C "cmdkey /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
+                Write-Output "Credentials: OK"
 
                 # Mount the drive
-                New-PSDrive `
-                    -Persist `
-                    -Name "X" `
-                    -PSProvider "FileSystem" `
-                    -Root $FileShareUNCPath
+                New-PSDrive -Name "X" -PSProvider "FileSystem" -Root $FileShareUNCPath -Persist
+                Write-Output "Fileshare: OK"
             }
         }
 
