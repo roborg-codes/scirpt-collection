@@ -229,12 +229,14 @@ configuration WebConfiguration
                     -Verbose -Confirm:$false `
                     -ErrorAction SilentlyContinue
 
-                New-IISSite `
-                    -Name "php-mysql-crud" `
-                    -PhysicalPath "C:\inetpub\wwwroot\php-mysql-crud-master" `
-                    -BindingInformation "*:80:" `
-                    -Protocol HTTP `
-                    -ErrorAction SilentlyContinue
+                if (-not [bool](Get-IISSite -Name "php-mysql-crud" -WarningAction SilentlyContinue) {
+                    New-IISSite `
+                        -Name "php-mysql-crud" `
+                        -PhysicalPath "C:\inetpub\wwwroot\php-mysql-crud-master" `
+                        -BindingInformation "*:80:" `
+                        -Protocol HTTP `
+                        -ErrorAction SilentlyContinue
+                }
 
                 Add-WebConfiguration `
                     //defaultDocument/files `
@@ -328,12 +330,14 @@ configuration WebConfiguration
                 return [Bool](Get-PSDrive "X" -PSProvider "FileSystem" -ErrorAction SilentlyContinue)
             }
             SetScript = {
+                Set-StrictMode -Version 2.0
+
                 $StorageAccountName = $using:StorageAccount.UserName
                 $StorageAccountKey = $using:StorageAccount.Password | ConvertFrom-SecureString
-                $FileShareUNCPath = "\\$StorageAccountName.file.core.windows.net\$FileShareName"
+                $FileShareUNCPath = "\\$StorageAccountName.file.core.windows.net\$using:FileShareName"
 
                 $ConnectTestResult = Test-NetConnection `
-                    -ComputerName $StorageAccountName.file.core.windows.net `
+                    -ComputerName "$StorageAccountName.file.core.windows.net" `
                     -Port 445
 
                 if (-not $ConnectTestResult.TcpTestSucceeded) {
@@ -342,11 +346,9 @@ configuration WebConfiguration
                 }
                 Write-Output "Port 445 connection: OK"
 
-                # Save the password so the drive will persist on reboot
                 cmd.exe /C "cmdkey /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
                 Write-Output "Credentials: OK"
 
-                # Mount the drive
                 New-PSDrive -Name "X" -PSProvider "FileSystem" -Root $FileShareUNCPath -Persist
                 Write-Output "Fileshare: OK"
             }
