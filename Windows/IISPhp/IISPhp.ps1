@@ -321,11 +321,11 @@ configuration WebConfiguration
         {
             GetScript = {
                 return @{
-                    Result = [String](Get-PSDrive "X" -PSProvider "Filesystem")
+                    Result = [String](Get-PSDrive "X" -PSProvider "Filesystem" -ErrorAction SilentlyContinue)
                 }
             }
             TestScript = {
-                return [Bool](Get-PSDrive "X" -PSProvider "FileSystem")
+                return [Bool](Get-PSDrive "X" -PSProvider "FileSystem" -ErrorAction SilentlyContinue)
             }
             SetScript = {
                 $StorageAccountName = $using:StorageAccount.UserName
