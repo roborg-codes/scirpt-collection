@@ -330,10 +330,8 @@ configuration WebConfiguration
                 return [Bool](Get-PSDrive "X" -PSProvider "FileSystem" -ErrorAction SilentlyContinue)
             }
             SetScript = {
-                Set-StrictMode -Version 2.0
-
-                $StorageAccountName = $using:StorageAccount.UserName
-                $StorageAccountKey = $using:StorageAccount.Password | ConvertFrom-SecureString
+                $StorageAccountName = ${using:StorageAccount}.UserName
+                $StorageAccountKey = ${using:StorageAccount}.Password | ConvertFrom-SecureString
                 $FileShareUNCPath = "\\${StorageAccountName}.file.core.windows.net\${using:FileShareName}"
                 Write-Verbose "Configuration vars: OK"
 
@@ -341,17 +339,18 @@ configuration WebConfiguration
                     -ComputerName "${StorageAccountName}.file.core.windows.net" `
                     -Port 445
 
-                if (-not $ConnectTestResult.TcpTestSucceeded) {
+                if ($ConnectTestResult.TcpTestSucceeded) {
+                    Write-Verbose "Port 445 connection: OK"
+
+                    cmd.exe /C "cmdkey /add:`"${StorageAccountName}.file.core.windows.net`" /user:`"localhost\${StorageAccountName}`" /pass:`"${StorageAccountKey}`""
+                    Write-Verbose "Credentials: OK"
+
+                    New-PSDrive -Name "X" -PSProvider "FileSystem" -Root $FileShareUNCPath -Persist
+                    Write-Verbose "Fileshare: OK"
+                } else {
                     Write-Error -Message "Unable to reach the Azure storage account via port 445."
-                    return
                 }
-                Write-Verbose "Port 445 connection: OK"
 
-                cmd.exe /C "cmdkey /add:`"${StorageAccountName}.file.core.windows.net`" /user:`"localhost\${StorageAccountName}`" /pass:`"${StorageAccountKey}`""
-                Write-Verbose "Credentials: OK"
-
-                New-PSDrive -Name "X" -PSProvider "FileSystem" -Root $FileShareUNCPath -Persist
-                Write-Verbose "Fileshare: OK"
             }
         }
 
