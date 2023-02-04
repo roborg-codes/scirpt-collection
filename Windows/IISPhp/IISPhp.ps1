@@ -229,7 +229,7 @@ configuration WebConfiguration
                     -Verbose -Confirm:$false `
                     -ErrorAction SilentlyContinue
 
-                if (-not [bool](Get-IISSite -Name "php-mysql-crud" -WarningAction SilentlyContinue) {
+                if (-not [bool](Get-IISSite -Name "php-mysql-crud" -WarningAction SilentlyContinue)) {
                     New-IISSite `
                         -Name "php-mysql-crud" `
                         -PhysicalPath "C:\inetpub\wwwroot\php-mysql-crud-master" `
@@ -334,23 +334,24 @@ configuration WebConfiguration
 
                 $StorageAccountName = $using:StorageAccount.UserName
                 $StorageAccountKey = $using:StorageAccount.Password | ConvertFrom-SecureString
-                $FileShareUNCPath = "\\$StorageAccountName.file.core.windows.net\$using:FileShareName"
+                $FileShareUNCPath = "\\${StorageAccountName}.file.core.windows.net\${using:FileShareName}"
+                Write-Verbose "Configuration vars: OK"
 
                 $ConnectTestResult = Test-NetConnection `
-                    -ComputerName "$StorageAccountName.file.core.windows.net" `
+                    -ComputerName "${StorageAccountName}.file.core.windows.net" `
                     -Port 445
 
                 if (-not $ConnectTestResult.TcpTestSucceeded) {
                     Write-Error -Message "Unable to reach the Azure storage account via port 445."
                     return
                 }
-                Write-Output "Port 445 connection: OK"
+                Write-Verbose "Port 445 connection: OK"
 
-                cmd.exe /C "cmdkey /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
-                Write-Output "Credentials: OK"
+                cmd.exe /C "cmdkey /add:`"${StorageAccountName}.file.core.windows.net`" /user:`"localhost\${StorageAccountName}`" /pass:`"${StorageAccountKey}`""
+                Write-Verbose "Credentials: OK"
 
                 New-PSDrive -Name "X" -PSProvider "FileSystem" -Root $FileShareUNCPath -Persist
-                Write-Output "Fileshare: OK"
+                Write-Verbose "Fileshare: OK"
             }
         }
 
