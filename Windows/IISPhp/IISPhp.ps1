@@ -319,40 +319,5 @@ configuration WebConfiguration
             )
         }
 
-        Script MountFileShare
-        {
-            GetScript = {
-                return @{
-                    Result = [String](Get-PSDrive "X" -PSProvider "Filesystem" -ErrorAction SilentlyContinue)
-                }
-            }
-            TestScript = {
-                return [Bool](Get-PSDrive "X" -PSProvider "FileSystem" -ErrorAction SilentlyContinue)
-            }
-            SetScript = {
-                $StorageAccountName = ${using:StorageAccount}.UserName
-                $StorageAccountKey =  ConvertFrom-SecureString -String ${using:StorageAccount}.Password -AsPlainText
-                $FileShareUNCPath = "\\${StorageAccountName}.file.core.windows.net\${using:FileShareName}"
-                Write-Verbose "Configuration vars: OK"
-
-                $ConnectTestResult = Test-NetConnection `
-                    -ComputerName "${StorageAccountName}.file.core.windows.net" `
-                    -Port 445
-
-                if ($ConnectTestResult.TcpTestSucceeded) {
-                    Write-Verbose "Port 445 connection: OK"
-
-                    cmd.exe /C "cmdkey /add:`"${StorageAccountName}.file.core.windows.net`" /user:`"localhost\${StorageAccountName}`" /pass:`"${StorageAccountKey}`""
-                    Write-Verbose "Credentials: OK"
-
-                    New-PSDrive -Name X -PSProvider FileSystem -Root $FileShareUNCPath -Persist
-                    Write-Verbose "Fileshare: OK"
-                } else {
-                    Write-Error -Message "Unable to reach the Azure storage account via port 445."
-                }
-
-            }
-        }
-
     }
 }
