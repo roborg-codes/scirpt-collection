@@ -331,7 +331,7 @@ configuration WebConfiguration
             }
             SetScript = {
                 $StorageAccountName = ${using:StorageAccount}.UserName
-                $StorageAccountKey = ${using:StorageAccount}.Password | ConvertFrom-SecureString
+                $StorageAccountKey =  ConvertFrom-SecureString -String ${using:StorageAccount}.Password -AsPlainText
                 $FileShareUNCPath = "\\${StorageAccountName}.file.core.windows.net\${using:FileShareName}"
                 Write-Verbose "Configuration vars: OK"
 
@@ -345,7 +345,7 @@ configuration WebConfiguration
                     cmd.exe /C "cmdkey /add:`"${StorageAccountName}.file.core.windows.net`" /user:`"localhost\${StorageAccountName}`" /pass:`"${StorageAccountKey}`""
                     Write-Verbose "Credentials: OK"
 
-                    New-PSDrive -Name "X" -PSProvider "FileSystem" -Root $FileShareUNCPath -Persist
+                    New-PSDrive -Name X -PSProvider FileSystem -Root $FileShareUNCPath -Persist
                     Write-Verbose "Fileshare: OK"
                 } else {
                     Write-Error -Message "Unable to reach the Azure storage account via port 445."
