@@ -330,17 +330,27 @@ configuration WebConfiguration
                 return [bool](Get-PSDrive -Name X -PSProvider FileSystem -ErrorAction SilentlyContinue)
             }
             SetScript = {
-                $connectTestResult = Test-NetConnection -ComputerName winvmstorageaccount.file.core.windows.net -Port 445
+                $StorageAccountName = $using:StorageAccount.UserName
+                $StorageAccountKey = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
+                    [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($using:StorageAccount.Password))
+
+                $connectTestResult = Test-NetConnection -ComputerName "$StorageAccountName.file.core.windows.net" -Port 445
                 if ($connectTestResult.TcpTestSucceeded) {
-                    $StorageAccountName = $using:StorageAccount.UserName
-                    $StorageAccountKey = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
-                        [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($using:StorageAccount.Password))
 
                     cmd.exe /C "cmdkey /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
 
-                    New-PSDrive -Name X -PSProvider FileSystem -Root "\\$StorageAccountName.file.core.windows.net\$using:FileShareName" -Persist
+                    $Result = New-PSDrive -Name X -PSProvider FileSystem -Root "\\$StorageAccountName.file.core.windows.net\$using:FileShareName" -Persist
                 } else {
+                    $Result = @{ Root = $null }
+                    Write-Verbose -Message "Unable to reach the Azure storage account via port 445."
                     Write-Error -Message "Unable to reach the Azure storage account via port 445."
+                }
+
+                if (($Result.Root) -eq ("\\$StorageAccountName.file.core.windows.net\$using:FileShareName")) {
+                    Write-Verbose -Message "MountFileShare: OK"
+                } else {
+                    Write-Verbose -Message "MountFileShare: ERR"
+                    Write-Error -Message "MountFileShare failed: $Result"
                 }
             }
         }
