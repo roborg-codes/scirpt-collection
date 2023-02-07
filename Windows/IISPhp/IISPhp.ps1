@@ -333,7 +333,8 @@ configuration WebConfiguration
                 $connectTestResult = Test-NetConnection -ComputerName winvmstorageaccount.file.core.windows.net -Port 445
                 if ($connectTestResult.TcpTestSucceeded) {
                     $StorageAccountName = $using:StorageAccount.UserName
-                    $StorageAccountKey = ConvertFrom-SecureString -SecureString $using:StorageAccount.Password -AsPlainText -Force
+                    $StorageAccountKey = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
+                        [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($using:StorageAccount.Password))
 
                     cmd.exe /C "cmdkey /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
 
