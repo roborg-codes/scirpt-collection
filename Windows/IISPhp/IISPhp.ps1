@@ -266,9 +266,14 @@ configuration WebConfiguration
                         -ScriptProcessor "C:\PHP\php-cgi.exe"
                 }
 
-                Add-WebConfiguration "System.WebServer/FastCgi" -Value @{
-                    FullPath = "C:\PHP\php-cgi.exe"
-                } -Force -ErrorAction SilentlyContinue
+                $CgiConfigured = (
+                    (Get-WebConfiguration "System.WebServer/FastCgi/* /*" -Recurse).ItemXPath
+                ) -eq "/system.webServer/fastCgi/application[@fullPath='C:\PHP\php-cgi.exe']/environmentVariables"
+                if (-not $CgiConfigured) {
+                    Add-WebConfiguration "System.WebServer/FastCgi" -Value @{
+                        FullPath = "C:\PHP\php-cgi.exe"
+                    } -Force -ErrorAction SilentlyContinue
+                }
 
             }
 
