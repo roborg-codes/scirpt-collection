@@ -319,5 +319,30 @@ configuration WebConfiguration
             )
         }
 
+        Script MountFileShare
+        {
+            GetScript = {
+                return @{
+                    Result = "N/A"
+                }
+            }
+            TestScript = {
+                return [bool](Get-PSDrive -Name X -PSProvider FileSystem -ErrorAction SilentlyContinue)
+            }
+            SetScript = {
+                $connectTestResult = Test-NetConnection -ComputerName winvmstorageaccount.file.core.windows.net -Port 445
+                if ($connectTestResult.TcpTestSucceeded) {
+                    $StorageAccountName = $using:StorageAccount.UserName
+                    $StorageAccountKey = ConvertFrom-SecureString -SecureString $using:StorageAccount.Password -AsPlainText -Force
+
+                    cmd.exe /C "cmdkey /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
+
+                    New-PSDrive -Name X -PSProvider FileSystem -Root "\\$StorageAccountName.file.core.windows.net\$using:FileShareName" -Persist
+                } else {
+                    Write-Error -Message "Unable to reach the Azure storage account via port 445."
+                }
+            }
+        }
+
     }
 }
