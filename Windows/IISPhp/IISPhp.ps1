@@ -338,19 +338,11 @@ configuration WebConfiguration
                 if ($connectTestResult.TcpTestSucceeded) {
 
                     cmd.exe /C "cmdkey /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
-
                     $Result = New-PSDrive -Name X -PSProvider FileSystem -Root "\\$StorageAccountName.file.core.windows.net\$using:FileShareName" -Persist
-                } else {
-                    $Result = @{ Root = $null }
-                    Write-Verbose -Message "Unable to reach the Azure storage account via port 445."
-                    Write-Error -Message "Unable to reach the Azure storage account via port 445."
-                }
+                    Write-Verbose -Message "MountFileShare: $($Result | Format-List | Out-String)"
 
-                if (($Result.Root) -eq ("\\$StorageAccountName.file.core.windows.net\$using:FileShareName")) {
-                    Write-Verbose -Message "MountFileShare: OK"
                 } else {
-                    Write-Verbose -Message "MountFileShare: ERR"
-                    Write-Error -Message "MountFileShare failed: $Result"
+                    Write-Error -Message "Unable to reach the Azure storage account via port 445."
                 }
             }
         }
