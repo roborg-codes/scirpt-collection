@@ -342,7 +342,7 @@ configuration WebConfiguration
                 $connectTestResult = Test-NetConnection -ComputerName "$StorageAccountName.file.core.windows.net" -Port 445
                 if ($connectTestResult.TcpTestSucceeded) {
 
-                    cmd.exe /C "cmdkey /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
+                    cmd.exe /C "cmdkey /persistent:yes /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
                     $Result = New-PSDrive -Name X -PSProvider FileSystem -Root "\\$StorageAccountName.file.core.windows.net\$using:FileShareName" -Scope Global -Persist
                     Write-Verbose -Message "MountFileShare: $($Result | Format-List | Out-String)"
 
