@@ -74,14 +74,23 @@ configuration WebConfiguration
                         -TypeName System.Management.Automation.PSCredential `
                         -ArgumentList @("localhost\$StorageAccountName", $(ConvertTo-SecureString -String $StorageAccountKey -AsPlainText -Force))
 
-                    $Result = New-PSDrive `
-                        -Name X `
-                        -PSProvider FileSystem `
-                        -Root "\\$StorageAccountName.file.core.windows.net\$FileShareName" `
-                        -Credential $Credential `
-                        -Scope Global `
-                        -Persist
-                    Write-Verbose -Message "$($Result | Format-List | Out-String)"
+                    # $Result = New-PSDrive `
+                    #     -Name X `
+                    #     -PSProvider FileSystem `
+                    #     -Root "\\$StorageAccountName.file.core.windows.net\$FileShareName" `
+                    #     -Credential $Credential `
+                    #     -Scope Global `
+                    #     -Persist
+                    $Result = New-SmbMapping `
+                        -RemotePath "\\$StorageAccountName.file.core.windows.net\$FileShareName" `
+                        -LocalPath "X:" `
+                        -UserName $StorageAccountName `
+                        -Password $StorageAccountKey `
+                        -Persistent `
+                        -SaveCredentials
+
+                    Write-Verbose -Message "$(WhoAmI): $($Result | Format-List | Out-String)"
+
                 } -ComputerName localhost `
                   -Credential $using:AdminCredential `
                   -ArgumentList @($using:StorageAccountName, $using:StorageAccountKey, $using:FileShareName, $using:AdminCredential)
