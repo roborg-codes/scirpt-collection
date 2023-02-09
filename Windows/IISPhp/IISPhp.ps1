@@ -55,45 +55,50 @@ configuration WebConfiguration
                     -ErrorAction SilentlyContinue)
             }
             SetScript = {
-                Invoke-Command -ScriptBlock {
-                    param($StorageAccountName, $StorageAccountKey, $FileShareName)
-                    $VerbosePreference='Continue'
+                Write-Verbose -Message $(
+                    Invoke-Expression -Command "cmdkey /add:${using:StorageAccountName}.file.core.windows.net /user:${using:StorageAccountName} /pass:${using:StorageAccountKey}"
+                    Invoke-Expression -Command "net use X: \\${using:StorageAccountName}.file.core.windows.net\${using:FileShareName}"
+                )
 
-                    $ConnectTestResult = Test-NetConnection `
-                        -ComputerName "$StorageAccountName.file.core.windows.net" `
-                        -Port 445
-                    if (-not $ConnectTestResult.TcpTestSucceeded) {
-                        Write-Error `
-                            -Message "Unable to reach the Azure storage account via port 445."
-                        return 1
-                    }
+                # Invoke-Command -ScriptBlock {
+                #     param($StorageAccountName, $StorageAccountKey, $FileShareName)
+                #     $VerbosePreference='Continue'
 
-                    # $CredResult = cmd.exe /C "cmdkey /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
-                    # Write-Verbose -Message "cmdkey: $($CredResult | Out-String)"
-                    $Credential = New-Object `
-                        -TypeName System.Management.Automation.PSCredential `
-                        -ArgumentList @("localhost\$StorageAccountName", $(ConvertTo-SecureString -String $StorageAccountKey -AsPlainText -Force))
+                #     $ConnectTestResult = Test-NetConnection `
+                #         -ComputerName "$StorageAccountName.file.core.windows.net" `
+                #         -Port 445
+                #     if (-not $ConnectTestResult.TcpTestSucceeded) {
+                #         Write-Error `
+                #             -Message "Unable to reach the Azure storage account via port 445."
+                #         return 1
+                #     }
 
-                    # $Result = New-PSDrive `
-                    #     -Name X `
-                    #     -PSProvider FileSystem `
-                    #     -Root "\\$StorageAccountName.file.core.windows.net\$FileShareName" `
-                    #     -Credential $Credential `
-                    #     -Scope Global `
-                    #     -Persist
-                    $Result = New-SmbMapping `
-                        -RemotePath "\\$StorageAccountName.file.core.windows.net\$FileShareName" `
-                        -LocalPath "X:" `
-                        -UserName $StorageAccountName `
-                        -Password $StorageAccountKey `
-                        -Persistent `
-                        -SaveCredentials
+                #     # $CredResult = cmd.exe /C "cmdkey /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
+                #     # Write-Verbose -Message "cmdkey: $($CredResult | Out-String)"
+                #     # $Credential = New-Object `
+                #     #    -TypeName System.Management.Automation.PSCredential `
+                #     #    -ArgumentList @("localhost\$StorageAccountName", $(ConvertTo-SecureString -String $StorageAccountKey -AsPlainText -Force))
 
-                    Write-Verbose -Message "$(WhoAmI): $($Result | Format-List | Out-String)"
+                #     # $Result = New-PSDrive `
+                #     #     -Name X `
+                #     #     -PSProvider FileSystem `
+                #     #     -Root "\\$StorageAccountName.file.core.windows.net\$FileShareName" `
+                #     #     -Credential $Credential `
+                #     #     -Scope Global `
+                #     #     -Persist
+                #     $Result = New-SmbMapping `
+                #         -RemotePath "\\$StorageAccountName.file.core.windows.net\$FileShareName" `
+                #         -LocalPath "X:" `
+                #         -UserName $StorageAccountName `
+                #         -Password $StorageAccountKey `
+                #         -Persistent $True `
+                #         -SaveCredentials
 
-                } -ComputerName localhost `
-                  -Credential $using:AdminCredential `
-                  -ArgumentList @($using:StorageAccountName, $using:StorageAccountKey, $using:FileShareName, $using:AdminCredential)
+                #     Write-Verbose -Message "$(WhoAmI): $($Result | Format-List | Out-String)"
+
+                # } -ComputerName localhost `
+                #   -Credential $using:AdminCredential `
+                #   -ArgumentList @($using:StorageAccountName, $using:StorageAccountKey, $using:FileShareName, $using:AdminCredential)
             }
         }
 
