@@ -64,7 +64,9 @@ configuration WebConfiguration
                     return 1
                 }
 
-                cmd.exe /C "cmdkey /add:`"$using:StorageAccountName.file.core.windows.net`" /user:`"wVM1\$using:StorageAccountName`" /pass:`"$using:StorageAccountKey`""
+                $CredResult = cmd.exe /C "cmdkey /add:`"$using:StorageAccountName.file.core.windows.net`" /user:`"localhost\$using:StorageAccountName`" /pass:`"$using:StorageAccountKey`""
+                Write-Verbose -Message "cmdkey: $($CredResult | Out-String)"
+
                 $Result = New-PSDrive `
                     -Name X `
                     -PSProvider FileSystem `
