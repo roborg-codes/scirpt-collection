@@ -36,7 +36,7 @@ configuration WebConfiguration
     $StorageAccountKey = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
         [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($StorageAccount.Password))
 
-    Node 'localhost'
+    Node localhost
     {
         Script MountFileShare
         {
@@ -55,28 +55,30 @@ configuration WebConfiguration
                     -ErrorAction SilentlyContinue)
             }
             SetScript = {
-                $connectTestResult = Test-NetConnection `
-                    -ComputerName "$using:StorageAccountName.file.core.windows.net" `
-                    -Port 445
-                if (-not $connectTestResult.TcpTestSucceeded) {
-                    Write-Error `
-                        -Message "Unable to reach the Azure storage account via port 445."
-                    return 1
-                }
+                Invoke-Command -ScriptBlock {
+                    param($StorageAccountName, $StorageAccountKey, $FileShareName)
 
-                $CredResult = cmd.exe /C "cmdkey /add:`"$using:StorageAccountName.file.core.windows.net`" /user:`"localhost\$using:StorageAccountName`" /pass:`"$using:StorageAccountKey`""
-                Write-Verbose -Message "cmdkey: $($CredResult | Out-String)"
+                    $ConnectTestResult = Test-NetConnection `
+                        -ComputerName "$StorageAccountName.file.core.windows.net" `
+                        -Port 445
+                    if (-not $ConnectTestResult.TcpTestSucceeded) {
+                        Write-Error `
+                            -Message "Unable to reach the Azure storage account via port 445."
+                        return 1
+                    }
+                    $CredResult = cmd.exe /C "cmdkey /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
+                    Write-Verbose -Message "cmdkey: $($CredResult | Out-String)"
+                    $Result = New-PSDrive `
+                        -Name X `
+                        -PSProvider FileSystem `
+                        -Root "\\$StorageAccountName.file.core.windows.net\$FileShareName" `
+                        -Scope Global `
+                        -Persist
+                } -ComputerName localhost `
+                  -Credential $using:AdminCredential `
+                  -ArgumentList @($using:StorageAccountName, $using:StorageAccountKey, $using:FileShareName)
 
-                $Result = New-PSDrive `
-                    -Name X `
-                    -PSProvider FileSystem `
-                    -Root "\\$using:StorageAccountName.file.core.windows.net\$using:FileShareName" `
-                    -Scope Global `
-                    -Persist
-                Write-Verbose `
-                    -Message "MountFileShare: $($Result | Format-List | Out-String)"
             }
-            Credential = $AdminCredential
         }
 
         # Install IIS features
