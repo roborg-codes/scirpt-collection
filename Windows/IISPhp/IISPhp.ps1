@@ -1,9 +1,6 @@
 # Usage:
-# webConfiguration -WebsitePackageUri https://example.com/app.php.zip -DBServerName myownmysqlserver
+# webConfiguration -Argument1 argument -Argument2 ...
 # Start-DSConfiguraion -Path .\WebConfiguration\
-
-# TODO:
-# 1. Debug IWR error handling in test-script
 
 configuration WebConfiguration
 {
@@ -45,22 +42,37 @@ configuration WebConfiguration
         {
             GetScript = {
                 return @{
-                    Result = (Get-PSDrive -Name X -PSProvider FileSystem -ErrorAction SilentlyContinue)
+                    Result = (Get-PSDrive `
+                        -Name X `
+                        -PSProvider FileSystem `
+                        -ErrorAction SilentlyContinue)
                 }
             }
             TestScript = {
-                return [bool](Get-PSDrive -Name X -PSProvider FileSystem -ErrorAction SilentlyContinue)
+                return [bool](Get-PSDrive `
+                    -Name X `
+                    -PSProvider FileSystem `
+                    -ErrorAction SilentlyContinue)
             }
             SetScript = {
-                $connectTestResult = Test-NetConnection -ComputerName "$using:StorageAccountName.file.core.windows.net" -Port 445
+                $connectTestResult = Test-NetConnection `
+                    -ComputerName "$using:StorageAccountName.file.core.windows.net" `
+                    -Port 445
                 if (-not $connectTestResult.TcpTestSucceeded) {
-                    Write-Error -Message "Unable to reach the Azure storage account via port 445."
+                    Write-Error `
+                        -Message "Unable to reach the Azure storage account via port 445."
                     return 1
                 }
 
                 cmd.exe /C "cmdkey /add:`"$using:StorageAccountName.file.core.windows.net`" /user:`"localhost\$using:StorageAccountName`" /pass:`"$using:StorageAccountKey`""
-                $Result = New-PSDrive -Name X -PSProvider FileSystem -Root "\\$using:StorageAccountName.file.core.windows.net\$using:FileShareName" -Scope Global -Persist
-                Write-Verbose -Message "MountFileShare: $($Result | Format-List | Out-String)"
+                $Result = New-PSDrive `
+                    -Name X `
+                    -PSProvider FileSystem `
+                    -Root "\\$using:StorageAccountName.file.core.windows.net\$using:FileShareName" `
+                    -Scope Global `
+                    -Persist
+                Write-Verbose `
+                    -Message "MountFileShare: $($Result | Format-List | Out-String)"
             }
             Credential = $AdminCredential
         }
