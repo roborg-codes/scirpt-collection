@@ -57,6 +57,7 @@ configuration WebConfiguration
             SetScript = {
                 Invoke-Command -ScriptBlock {
                     param($StorageAccountName, $StorageAccountKey, $FileShareName)
+                    $VerbosePreference='Continue'
 
                     $ConnectTestResult = Test-NetConnection `
                         -ComputerName "$StorageAccountName.file.core.windows.net" `
@@ -66,18 +67,24 @@ configuration WebConfiguration
                             -Message "Unable to reach the Azure storage account via port 445."
                         return 1
                     }
-                    $CredResult = cmd.exe /C "cmdkey /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
-                    Write-Verbose -Message "cmdkey: $($CredResult | Out-String)"
+
+                    # $CredResult = cmd.exe /C "cmdkey /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
+                    # Write-Verbose -Message "cmdkey: $($CredResult | Out-String)"
+                    $Credential = New-Object `
+                        -TypeName System.Management.Automation.PSCredential `
+                        -ArgumentList @("localhost\$StorageAccountName", $(ConvertTo-SecureString -String $StorageAccountKey -AsPlainText -Force))
+
                     $Result = New-PSDrive `
                         -Name X `
                         -PSProvider FileSystem `
                         -Root "\\$StorageAccountName.file.core.windows.net\$FileShareName" `
+                        -Credential $Credential `
                         -Scope Global `
                         -Persist
+                    Write-Verbose -Message "$($Result | Format-List | Out-String)"
                 } -ComputerName localhost `
                   -Credential $using:AdminCredential `
-                  -ArgumentList @($using:StorageAccountName, $using:StorageAccountKey, $using:FileShareName)
-
+                  -ArgumentList @($using:StorageAccountName, $using:StorageAccountKey, $using:FileShareName, $using:AdminCredential)
             }
         }
 
