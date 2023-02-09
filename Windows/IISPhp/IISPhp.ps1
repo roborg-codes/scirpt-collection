@@ -32,9 +32,6 @@ configuration WebConfiguration
 
     Import-DscResource -ModuleName PSDesiredStateConfiguration
 
-    $StorageAccountName = $StorageAccount.UserName
-    $StorageAccountKey = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
-        [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($StorageAccount.Password))
 
     Node localhost
     {
@@ -55,10 +52,26 @@ configuration WebConfiguration
                     -ErrorAction SilentlyContinue)
             }
             SetScript = {
-                Write-Verbose -Message $(
-                    Invoke-Expression -Command "cmdkey /add:${using:StorageAccountName}.file.core.windows.net /user:${using:StorageAccountName} /pass:${using:StorageAccountKey}"
-                    Invoke-Expression -Command "net use X: \\${using:StorageAccountName}.file.core.windows.net\${using:FileShareName}"
-                )
+                $FileShareName = $using:FileShareName
+                $StorageAccountName = $using:StorageAccount.UserName
+                $StorageAccountKey = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
+                    [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($using:StorageAccount.Password))
+
+                $ConnectTestResult = Test-NetConnection `
+                    -ComputerName "$StorageAccountName.file.core.windows.net" `
+                    -Port 445
+                if (-not $ConnectTestResult.TcpTestSucceeded) {
+                    Write-Error -Message "Unable to reach the Azure storage account via port 445."
+                    return 1
+                } else { Write-Verbose -Message "SMB net: OK" }
+
+                Write-Verbose -Message "cmdkey /add:${StorageAccountName}.file.core.windows.net /user:${StorageAccountName} /pass:${StorageAccountKey}";
+                Write-Verbose -Message "net use X: \\${StorageAccountName}.file.core.windows.net\${FileShareName}";
+
+                Write-Verbose -Message "$(
+                    Invoke-Expression -Command "cmdkey /add:${StorageAccountName}.file.core.windows.net /user:${StorageAccountName} /pass:${StorageAccountKey}";
+                    Invoke-Expression -Command "net use X: \\${StorageAccountName}.file.core.windows.net\${FileShareName}";
+                )"
 
                 # Invoke-Command -ScriptBlock {
                 #     param($StorageAccountName, $StorageAccountKey, $FileShareName)
