@@ -1,7 +1,3 @@
-# Usage:
-# webConfiguration -Argument1 argument -Argument2 ...
-# Start-DSConfiguraion -Path .\WebConfiguration\
-
 configuration WebConfiguration
 {
     param
@@ -31,7 +27,6 @@ configuration WebConfiguration
     )
 
     Import-DscResource -ModuleName PSDesiredStateConfiguration
-
 
     Node localhost
     {
@@ -65,54 +60,15 @@ configuration WebConfiguration
                     return 1
                 } else { Write-Verbose -Message "SMB net: OK" }
 
-                Write-Verbose -Message "cmdkey /add:${StorageAccountName}.file.core.windows.net /user:${StorageAccountName} /pass:${StorageAccountKey}";
-                Write-Verbose -Message "net use X: \\${StorageAccountName}.file.core.windows.net\${FileShareName}";
+                Write-Verbose -Message "cmdkey /add:${StorageAccountName}.file.core.windows.net /user:${StorageAccountName} /pass:${StorageAccountKey}"
+                $result = Invoke-Expression -Command "cmdkey /add:${StorageAccountName}.file.core.windows.net /user:${StorageAccountName} /pass:${StorageAccountKey}"
+                Write-Verbose -Message $($result | Out-String)
 
-                Write-Verbose -Message "$(
-                    Invoke-Expression -Command "cmdkey /add:${StorageAccountName}.file.core.windows.net /user:${StorageAccountName} /pass:${StorageAccountKey}";
-                    Invoke-Expression -Command "net use X: \\${StorageAccountName}.file.core.windows.net\${FileShareName}";
-                )"
-
-                # Invoke-Command -ScriptBlock {
-                #     param($StorageAccountName, $StorageAccountKey, $FileShareName)
-                #     $VerbosePreference='Continue'
-
-                #     $ConnectTestResult = Test-NetConnection `
-                #         -ComputerName "$StorageAccountName.file.core.windows.net" `
-                #         -Port 445
-                #     if (-not $ConnectTestResult.TcpTestSucceeded) {
-                #         Write-Error `
-                #             -Message "Unable to reach the Azure storage account via port 445."
-                #         return 1
-                #     }
-
-                #     # $CredResult = cmd.exe /C "cmdkey /add:`"$StorageAccountName.file.core.windows.net`" /user:`"localhost\$StorageAccountName`" /pass:`"$StorageAccountKey`""
-                #     # Write-Verbose -Message "cmdkey: $($CredResult | Out-String)"
-                #     # $Credential = New-Object `
-                #     #    -TypeName System.Management.Automation.PSCredential `
-                #     #    -ArgumentList @("localhost\$StorageAccountName", $(ConvertTo-SecureString -String $StorageAccountKey -AsPlainText -Force))
-
-                #     # $Result = New-PSDrive `
-                #     #     -Name X `
-                #     #     -PSProvider FileSystem `
-                #     #     -Root "\\$StorageAccountName.file.core.windows.net\$FileShareName" `
-                #     #     -Credential $Credential `
-                #     #     -Scope Global `
-                #     #     -Persist
-                #     $Result = New-SmbMapping `
-                #         -RemotePath "\\$StorageAccountName.file.core.windows.net\$FileShareName" `
-                #         -LocalPath "X:" `
-                #         -UserName $StorageAccountName `
-                #         -Password $StorageAccountKey `
-                #         -Persistent $True `
-                #         -SaveCredentials
-
-                #     Write-Verbose -Message "$(WhoAmI): $($Result | Format-List | Out-String)"
-
-                # } -ComputerName localhost `
-                #   -Credential $using:AdminCredential `
-                #   -ArgumentList @($using:StorageAccountName, $using:StorageAccountKey, $using:FileShareName, $using:AdminCredential)
+                Write-Verbose -Message "net use X: \\${StorageAccountName}.file.core.windows.net\${FileShareName}"
+                $result = Invoke-Expression -Command "net use X: \\${StorageAccountName}.file.core.windows.net\${FileShareName} /persistent:yes"
+                Write-Verbose -Message $($result | Out-String)
             }
+            PsDscRunAsCredential = $AdminCredential
         }
 
         # Install IIS features
