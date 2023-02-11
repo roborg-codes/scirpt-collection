@@ -28,6 +28,12 @@ configuration WebConfiguration
 
     Import-DscResource -ModuleName PSDesiredStateConfiguration
 
+    $StorageAccountName = $StorageAccount.UserName
+    # Only in PS 7.0
+    # $StorageAccountKey = ConvertFrom-SecureString -SecureString $StorageAccount.Password -AsPlainText -Force
+    $StorageAccountKey = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
+        [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($StorageAccount.Password))
+
     Node localhost
     {
         Script MountFileShare
@@ -48,9 +54,8 @@ configuration WebConfiguration
             }
             SetScript = {
                 $FileShareName = $using:FileShareName
-                $StorageAccountName = $using:StorageAccount.UserName
-                $StorageAccountKey = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
-                    [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($using:StorageAccount.Password))
+                $StorageAccountName = $using:StorageAccountName
+                $StorageAccountKey = $using:StorageAccountKey
 
                 $ConnectTestResult = Test-NetConnection `
                     -ComputerName "$StorageAccountName.file.core.windows.net" `
