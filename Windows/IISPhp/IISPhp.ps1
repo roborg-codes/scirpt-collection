@@ -208,7 +208,7 @@ configuration WebConfiguration
             }
 
             TestScript = {
-                return (Test-Path -Path "C:\PHP") -and (php -v)
+                return (Test-Path -Path "C:\PHP")
             }
 
             SetScript = {
