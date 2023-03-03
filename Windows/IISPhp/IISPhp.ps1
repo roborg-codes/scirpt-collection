@@ -129,7 +129,7 @@ configuration WebConfiguration
         {
             GetScript = {
                 return @{
-                    Result = Test-Path -PathType leaf -Path "C:\Temp\WebApp\Archive.zip"
+                    Result = Test-Path -PathType leaf -Path "C:\WebApp\Archive.zip"
                 }
             }
 
@@ -139,8 +139,8 @@ configuration WebConfiguration
 
             SetScript = {
                 # Remove default website files
-                Get-ChildItem -Path "C:\inetpub\wwwroot" | ForEach {
-                    Remove-Item -Recurse $_.FullName
+                Get-ChildItem -Path "C:\inetpub\wwwroot" -Recurse | ForEach {
+                    Remove-Item $_.FullName -Force
                 }
 
                 # Download archive
@@ -157,6 +157,7 @@ configuration WebConfiguration
             Destination = "C:\inetpub\wwwroot"
             Ensure      = "Present"
             DependsOn   = "[Script]PrepareWebSiteContent"
+            Force       = $true
         }
 
         # Install vcredist (php dependency)
